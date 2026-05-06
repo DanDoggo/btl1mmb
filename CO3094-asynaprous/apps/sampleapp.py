@@ -38,37 +38,56 @@ TRACKER_FILE = "db/tracker.json"
 def get_active_peers():
     if not os.path.exists("db"):
         os.makedirs("db")
-    if not os.path.exists(TRACKER_FILE):
-        return {}
-    try:
-        with open(TRACKER_FILE, "r") as f:
-            peers = json.load(f)
+    
+    peers = {}
+    # Retry loop: if another process is currently writing, wait 50ms and try again
+    for _ in range(5):
+        try:
+            if os.path.exists(TRACKER_FILE):
+                with open(TRACKER_FILE, "r") as f:
+                    peers = json.load(f)
+            break
+        except Exception:
+            time.sleep(0.05)
             
-        # --- THE FIX: Filter out peers who haven't pinged in 30 seconds ---
-        active_peers = {}
-        current_time = time.time()
-        for user, data in peers.items():
-            if current_time - data.get("last_seen", 0) < 30:
-                active_peers[user] = data
-                
-        return active_peers
-    except:
-        return {}
+    active_peers = {}
+    current_time = time.time()
+    for user, data in peers.items():
+        # Check the timestamp (Addressed in Bug 3 below)
+        if current_time - data.get("last_seen", 0) < 15:
+            active_peers[user] = data
+            
+    return active_peers
 
 def add_active_peer(username, ip, port):
-    try:
-        with open(TRACKER_FILE, "r") as f:
-            peers = json.load(f)
-    except:
-        peers = {}
+    if not os.path.exists("db"):
+        os.makedirs("db")
         
+    peers = {}
+    for _ in range(5):
+        try:
+            if os.path.exists(TRACKER_FILE):
+                with open(TRACKER_FILE, "r") as f:
+                    peers = json.load(f)
+            break
+        except Exception:
+            time.sleep(0.05)
+    
     peers[username] = {
         "ip": ip, 
         "port": int(port),
-        "last_seen": time.time() # --- THE FIX: Stamp the heartbeat ---
+        "last_seen": time.time()
     }
-    with open(TRACKER_FILE, "w") as f:
-        json.dump(peers, f)
+    
+    # Atomic Write: Write to a temp file first, then instantly replace the real file.
+    # This guarantees no process will ever read a partially-written JSON file.
+    temp_name = TRACKER_FILE + ".tmp"
+    try:
+        with open(temp_name, "w") as f:
+            json.dump(peers, f)
+        os.replace(temp_name, TRACKER_FILE)
+    except Exception as e:
+        print(f"[Tracker Error] Could not save: {e}")
 
 # Local Peer State: Stores messages for the local UI to read
 chat_channels = {"general": []}
@@ -222,6 +241,7 @@ if P2P_MODE == "coroutine":
             msg_data = json.loads(body)
             channel = msg_data.get("channel", "general")
             sender = msg_data.get("sender", "Unknown")
+            initiator = msg_data.get("initiator", sender)
             text = msg_data.get("message", "")
 
             # Save our OWN message to memory exactly ONCE
@@ -234,11 +254,13 @@ if P2P_MODE == "coroutine":
 
             tasks = []
             for username, address in active_peers.items():
-                if sender == username:
+                # Check BOTH sender and initiator!
+                if sender == username or initiator == username:
                     continue
                 tasks.append(send_http_post_async(address["ip"], address["port"], "/send-peer", msg_data))
             
             await asyncio.gather(*tasks)
+
             return json.dumps({"status": "broadcast complete"}).encode("utf-8")
         except Exception as e:
             return json.dumps({"status": "error", "message": str(e)}).encode("utf-8")
@@ -353,6 +375,7 @@ elif P2P_MODE == "threading":
             msg_data = json.loads(body)
             channel = msg_data.get("channel", "general")
             sender = msg_data.get("sender", "Unknown")
+            initiator = msg_data.get("initiator", sender)
             text = msg_data.get("message", "")
 
             # Save our OWN message to memory exactly ONCE
@@ -365,7 +388,8 @@ elif P2P_MODE == "threading":
             # ---------------------------------------------------
 
             for username, address in active_peers.items():
-                if sender == username:
+                # Check BOTH sender and initiator!
+                if sender == username or initiator == username:
                     continue
                 # Spawn a background thread for each outgoing message
                 thread = threading.Thread(

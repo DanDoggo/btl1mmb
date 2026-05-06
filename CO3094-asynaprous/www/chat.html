@@ -146,6 +146,9 @@
     <script>
         // --- NEW: Notification Tracker ---
         let lastSeenCounts = {};
+        let lastMessageCount = 0;
+        let isFetchingMessages = false; // Lock for the race condition
+        let knownPeers = new Set();     // Memory for offline users
 
         // 1. Get Authentication State
         const myUsername = localStorage.getItem("my_username");
@@ -257,6 +260,7 @@
                         headers: { "Content-Type": "application/json" }, 
                         body: JSON.stringify({ 
                             sender: "System", 
+                            initiator: myUsername,
                             channel: newChannel, 
                             message: `Channel created by ${myUsername}` 
                         })
@@ -273,102 +277,110 @@
         }
 
         // --- UPDATED: Poll for Active Peers (Adds Green Dot & Direct Messaging) ---
-        // --- UPDATED: Poll for Active Peers ---
-        async function fetchPeers() {
-            try {
-                const response = await fetch('/get-list');
-                const data = await response.json();
-                
-                const list = document.getElementById("peer-list");
-                
-                // --- THE FIX: Clear the UI list entirely before rebuilding ---
-                // This ensures peers who are no longer "Active" vanish from the screen
-                list.innerHTML = "";
-                
-                for (const [peerName, peerData] of Object.entries(data.peers)) {
-                    if (peerName === myUsername) continue; 
+        // --- 2. REPLACE YOUR fetchPeers() FUNCTION ---
+async function fetchPeers() {
+    try {
+        const response = await fetch('/get-list');
+        const data = await response.json();
+        
+        const list = document.getElementById("peer-list");
+        
+        // Remember anyone we've ever seen
+        for (const peerName of Object.keys(data.peers)) {
+            if (peerName !== myUsername) knownPeers.add(peerName);
+        }
+        
+        // Redraw ALL known peers, updating their online status
+        list.innerHTML = "";
+        for (const peerName of knownPeers) {
+            const isOnline = data.peers[peerName] !== undefined;
+            
+            const sharedDmChannel = getDMChannel(peerName);
+            const li = document.createElement("li");
+            li.className = "channel-item";
+            if (currentChannel === sharedDmChannel) li.classList.add("active");
+            li.id = `peer-${sharedDmChannel}`;
+            
+            li.onclick = () => switchChannel(sharedDmChannel);
+            
+            const strokeColor = (currentChannel === sharedDmChannel) ? '#c7d2fe' : 'rgba(255,255,255,0.25)';
+            
+            // Green if online, transparent/grey if offline
+            const dotColor = isOnline ? '#10b981' : 'rgba(255,255,255,0.1)';
+            const svgIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="${dotColor}" stroke="${strokeColor}" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="8"></circle></svg>`;
+            
+            const portText = isOnline 
+                ? `<span style="font-size:10px; opacity:0.5;">(${data.peers[peerName].port})</span>` 
+                : `<span style="font-size:10px; opacity:0.3;">(Offline)</span>`;
+            
+            li.innerHTML = `${svgIcon}<span style="flex:1;">${peerName} ${portText}</span>`;
+            list.appendChild(li);
+        }
+    } catch (e) { console.error("Failed to fetch peers"); }
+}
 
-                    const sharedDmChannel = getDMChannel(peerName);
-                    const li = document.createElement("li");
-                    li.className = "channel-item";
-                    if (currentChannel === sharedDmChannel) li.classList.add("active");
-                    li.id = `peer-${sharedDmChannel}`;
-                    
-                    li.onclick = () => switchChannel(sharedDmChannel);
-                    
-                    const isActive = currentChannel === sharedDmChannel;
-                    const strokeColor = isActive ? '#c7d2fe' : 'rgba(255,255,255,0.25)';
-                    
-                    // The Green Dot is now part of the fresh generation
-                    const svgIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#10b981" stroke="${strokeColor}" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="8"></circle></svg>`;
-                    
-                    li.innerHTML = `${svgIcon}<span style="flex:1;">${peerName} <span style="font-size:10px; opacity:0.5;">(${peerData.port})</span></span>`;
-                    list.appendChild(li);
+
+// --- 3. REPLACE YOUR fetchMessages() FUNCTION ---
+async function fetchMessages() {
+    // Prevent double-fetching race condition
+    if (isFetchingMessages) return; 
+    isFetchingMessages = true;
+    
+    try {
+        const response = await fetch('/get-messages');
+        const data = await response.json();
+        
+        const serverChannels = Object.keys(data.channels);
+        for (const ch of serverChannels) {
+            if (!ch.startsWith("@") && !knownChannels.has(ch)) {
+                knownChannels.add(ch);
+                const list = document.getElementById("channel-list");
+                const li = document.createElement("li");
+                li.className = "channel-item";
+                li.id = `btn-${ch}`;
+                li.onclick = () => switchChannel(ch);
+                const svgIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" style="flex-shrink:0"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>`;
+                li.innerHTML = `${svgIcon}<span style="flex:1;">${ch}</span>`;
+                list.appendChild(li);
+            }
+
+            const messagesInChannel = data.channels[ch];
+            if (ch === currentChannel) {
+                lastSeenCounts[ch] = messagesInChannel.length;
+            } else {
+                const seenCount = lastSeenCounts[ch] || 0;
+                if (messagesInChannel.length > seenCount) {
+                    const btnId = ch.startsWith("@") ? `peer-${ch}` : `btn-${ch}`;
+                    const btnElem = document.getElementById(btnId);
+                    if (btnElem && !btnElem.querySelector('.unread-dot')) {
+                        btnElem.innerHTML += `<span class="unread-dot" style="width:8px; height:8px; background:#ef4444; border-radius:50%; margin-left:auto; box-shadow: 0 0 6px #ef4444;"></span>`;
+                    }
                 }
-            } catch (e) { console.error("Failed to fetch peers"); }
+            }
         }
 
-        // 4. Poll for Chat Messages
-        // --- UPDATED: Poll for Chat Messages (Uses currentChannel) ---
-        // --- FIX 1 & UPDATED: Poll for Chat Messages ---
-        let lastMessageCount = 0;
-        async function fetchMessages() {
-            try {
-                const response = await fetch('/get-messages');
-                const data = await response.json();
-                
-                const serverChannels = Object.keys(data.channels);
-                for (const ch of serverChannels) {
-                    // Check for new public channels
-                    if (!ch.startsWith("@") && !knownChannels.has(ch)) {
-                        knownChannels.add(ch);
-                        const list = document.getElementById("channel-list");
-                        const li = document.createElement("li");
-                        li.className = "channel-item";
-                        li.id = `btn-${ch}`;
-                        li.onclick = () => switchChannel(ch);
-                        const svgIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" style="flex-shrink:0"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>`;
-                        li.innerHTML = `${svgIcon}<span style="flex:1;">${ch}</span>`;
-                        list.appendChild(li);
-                    }
-
-                    // --- THE FIX: Unread Notification Logic ---
-                    const messagesInChannel = data.channels[ch];
-                    if (ch === currentChannel) {
-                        lastSeenCounts[ch] = messagesInChannel.length;
-                    } else {
-                        const seenCount = lastSeenCounts[ch] || 0;
-                        if (messagesInChannel.length > seenCount) {
-                            // Find the button (either public channel or DM)
-                            const btnId = ch.startsWith("@") ? `peer-${ch}` : `btn-${ch}`;
-                            const btnElem = document.getElementById(btnId);
-                            
-                            // If it doesn't already have a dot, inject one!
-                            if (btnElem && !btnElem.querySelector('.unread-dot')) {
-                                btnElem.innerHTML += `<span class="unread-dot" style="width:8px; height:8px; background:#ef4444; border-radius:50%; margin-left:auto; box-shadow: 0 0 6px #ef4444;"></span>`;
-                            }
-                        }
-                    }
+        const messages = data.channels[currentChannel] || [];
+        if (messages.length > lastMessageCount) {
+            const chatBox = document.getElementById("chat-box");
+            for (let i = lastMessageCount; i < messages.length; i++) {
+                const msgString = messages[i];
+                const colonIndex = msgString.indexOf(":");
+                if (colonIndex !== -1) {
+                    const sender = msgString.substring(0, colonIndex).trim();
+                    const text = msgString.substring(colonIndex + 1).trim();
+                    appendMessage(sender, text);
                 }
-
-                // Render current channel messages
-                const messages = data.channels[currentChannel] || [];
-                if (messages.length > lastMessageCount) {
-                    const chatBox = document.getElementById("chat-box");
-                    for (let i = lastMessageCount; i < messages.length; i++) {
-                        const msgString = messages[i];
-                        const colonIndex = msgString.indexOf(":");
-                        if (colonIndex !== -1) {
-                            const sender = msgString.substring(0, colonIndex).trim();
-                            const text = msgString.substring(colonIndex + 1).trim();
-                            appendMessage(sender, text);
-                        }
-                    }
-                    lastMessageCount = messages.length;
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                }
-            } catch(e) { console.error("Failed to fetch messages"); }
+            }
+            lastMessageCount = messages.length;
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
+    } catch(e) { 
+        console.error("Failed to fetch messages", e); 
+    } finally {
+        // Always unlock when finished, even if it errors out
+        isFetchingMessages = false;
+    }
+}
 
         // Render a message to the DOM
         function appendMessage(sender, text) {
