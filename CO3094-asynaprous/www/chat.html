@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AsynapRous Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* (KEEP ALL CSS - Identical to your original index.html) */
+        :root {
+            --bg-dark: #0a0a12;
+            --bg-glass: rgba(20, 20, 35, 0.85);
+            --border-light: rgba(255, 255, 255, 0.08);
+            --primary: #6366f1;
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --text-main: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.45);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { 
+            background: radial-gradient(ellipse at 10% 10%, #1a1a3e 0%, #0a0a12 55%, #000 100%);
+            color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .ambient-orb-1 { position: absolute; top: 15%; left: 10%; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+        .ambient-orb-2 { position: absolute; bottom: 20%; right: 15%; width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle, rgba(168,85,247,0.1) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+
+        /* --- MAIN APP SCREEN --- */
+        #app-screen { display: flex; height: 100vh; flex-direction: row; position: relative; z-index: 10; }
+        
+        /* Sidebar */
+        #sidebar { width: 260px; background: rgba(12,12,22,0.85); border-right: 1px solid var(--border-light); display: flex; flex-direction: column; backdrop-filter: blur(20px); flex-shrink: 0; }
+        .sidebar-brand { padding: 20px 16px 18px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; gap: 10px; }
+        .brand-icon-small { width: 32px; height: 32px; border-radius: 9px; background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(99,102,241,0.4); flex-shrink: 0; }
+        .brand-text { font-size: 14px; font-weight: 700; color: #e0e7ff; letter-spacing: -0.2px; }
+        .brand-sub { font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 0.5px; text-transform: uppercase; }
+        
+        #channel-container { padding: 12px 8px 8px; flex: 1; overflow-y: auto; }
+        .channel-label { font-size: 10px; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 1.2px; padding: 0 8px 10px; font-weight: 600; }
+        #peer-list { list-style: none; }
+        .channel-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin-bottom: 4px; border-radius: 10px; color: var(--text-muted); font-size: 14px; transition: 0.15s; font-weight: 400; }
+        .channel-item.active { background: linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(139,92,246,0.15) 100%); border: 1px solid rgba(99,102,241,0.3); color: #c7d2fe; font-weight: 600; }
+        
+        .user-profile { padding: 12px 14px; border-top: 1px solid var(--border-light); display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.3); }
+
+        /* Chat Area */
+        #chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        #chat-header { padding: 16px 28px; background: rgba(10,10,20,0.7); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; gap: 10px; backdrop-filter: blur(20px); flex-shrink: 0; }
+        .hash-icon-box { width: 32px; height: 32px; border-radius: 9px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); display: flex; align-items: center; justify-content: center; }
+        #chat-header h2 { margin: 0; color: #e0e7ff; font-size: 16px; font-weight: 600; letter-spacing: -0.2px; }
+        
+        #chat-box { flex: 1; overflow-y: auto; padding: 28px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
+        #empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: rgba(255,255,255,0.2); animation: fadeIn 0.3s ease; }
+
+        /* Message Bubbles */
+        .message-row { display: flex; gap: 10px; max-width: 72%; animation: slideUpMsg 0.25s ease-out forwards; }
+        .message-row.mine { align-self: flex-end; flex-direction: row-reverse; }
+        .message-row.other { align-self: flex-start; }
+        .avatar { border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-weight: 700; }
+        .message-content { display: flex; flex-direction: column; }
+        .message-row.mine .message-content { align-items: flex-end; }
+        .message-row.other .message-content { align-items: flex-start; }
+        .sender-name { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 5px; padding-left: 4px; font-weight: 500; }
+        .message-bubble { padding: 11px 16px; font-size: 14px; line-height: 1.55; word-break: break-word; }
+        .message-row.mine .message-bubble { border-radius: 18px 18px 4px 18px; background: var(--primary-gradient); color: #fff; box-shadow: 0 4px 16px rgba(99,102,241,0.3); }
+        .message-row.other .message-bubble { border-radius: 18px 18px 18px 4px; background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.9); border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(10px); }
+
+        /* Input Area */
+        #input-area { padding: 16px 24px; background: rgba(10,10,20,0.7); border-top: 1px solid var(--border-light); backdrop-filter: blur(20px); display: flex; gap: 12px; flex-shrink: 0; }
+        #input-area input { flex: 1; padding: 14px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: white; font-size: 14px; outline: none; }
+        #input-area button { padding: 0 24px; border-radius: 12px; border: none; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        #input-area button:not(:disabled) { background: var(--primary-gradient); color: white; }
+        #input-area button:disabled { background: rgba(99,102,241,0.15); color: rgba(255,255,255,0.3); }
+
+        @keyframes slideUpMsg { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div class="ambient-orb-1"></div>
+    <div class="ambient-orb-2"></div>
+
+    <div id="app-screen">
+        <!-- Sidebar -->
+        <div id="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon-small">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                </div>
+                <div>
+                    <div class="brand-text">AsynapRous</div>
+                    <div class="brand-sub">P2P Network</div>
+                </div>
+            </div>
+
+            <!-- New: Channels Section -->
+            <div id="channel-container" style="flex: 0 0 auto; max-height: 40%;">
+                <div class="channel-label">Channels</div>
+                <ul id="channel-list">
+                    <li class="channel-item active" id="btn-general" onclick="switchChannel('general')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c7d2fe" stroke-width="2" style="flex-shrink:0"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+                        <span style="flex:1;">general</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- New: Channel Creation Input -->
+            <div class="new-channel-box" style="padding: 10px; border-bottom: 1px solid var(--border-light); display: flex; gap: 5px;">
+                <input type="text" id="new-channel-input" placeholder="New channel..." style="flex: 1; padding: 5px; border-radius: 5px; background: rgba(255,255,255,0.1); border: none; color: white;">
+                <button onclick="createChannel()" style="padding: 5px 10px; border-radius: 5px; background: var(--primary); color: white; border: none; cursor: pointer;">+</button>
+            </div>
+
+            <!-- Active Peers Section -->
+            <div id="peer-container" style="flex: 1; overflow-y: auto; padding-top: 10px;">
+                <div class="channel-label" style="padding-left: 8px;">Direct Messages (Peers)</div>
+                <ul id="peer-list"></ul>
+            </div>
+
+            <div class="user-profile">
+                <div id="my-avatar"></div>
+                <div>
+                    <div id="profile-name" style="font-size: 13px; font-weight: 600; color: #e0e7ff;"></div>
+                    <div style="font-size: 11px; color: #10b981;">● Online</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div id="chat-area">
+            <div id="chat-header">
+                <div class="hash-icon-box">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+                </div>
+                <h2>Global Network</h2>
+            </div>
+            
+            <div id="chat-box"></div>
+            
+            <div id="input-area">
+                <input type="text" id="message-input" placeholder="Broadcast to network..." autocomplete="off">
+                <button id="send-btn" onclick="sendMessage()" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- NEW: Notification Tracker ---
+        let lastSeenCounts = {};
+
+        // 1. Get Authentication State
+        const myUsername = localStorage.getItem("my_username");
+        if (!myUsername) {
+            window.location.href = '/login.html'; // Kick out if not logged in
+        }
+
+        const myPort = window.location.port || 80;
+        const msgInput = document.getElementById("message-input");
+        const sendBtn = document.getElementById("send-btn");
+
+        msgInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
+        msgInput.addEventListener("input", e => { sendBtn.disabled = e.target.value.trim() === ""; });
+
+        // Avatar UI Generator
+        function createAvatarNode(name, size) {
+            const colors = [["#f59e0b", "#d97706"], ["#10b981", "#059669"], ["#3b82f6", "#2563eb"], ["#8b5cf6", "#7c3aed"], ["#ef4444", "#dc2626"]];
+            const charCode = name.charCodeAt(0) || 0;
+            const [from, to] = colors[charCode % colors.length];
+            const avatar = document.createElement("div");
+            avatar.className = "avatar";
+            avatar.innerText = name.charAt(0).toUpperCase();
+            avatar.style.width = size + "px"; avatar.style.height = size + "px";
+            avatar.style.background = `linear-gradient(135deg, ${from} 0%, ${to} 100%)`;
+            return avatar;
+        }
+
+        // Initialize UI
+        document.getElementById("profile-name").innerText = myUsername;
+        document.getElementById("my-avatar").appendChild(createAvatarNode(myUsername, 30));
+
+        // 2. Register with Tracker
+        async function registerPeer() {
+            try {
+                await fetch('/submit-info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username: myUsername, 
+                        ip: window.location.hostname, // <--- This sends 127.0.0.2 or 127.0.0.3!
+                        port: myPort 
+                    })
+                });
+            } catch(e) { console.error("Tracker registration failed", e); }
+        }
+
+        // --- NEW: State Variables ---
+        let currentChannel = "general";
+        let knownChannels = new Set(["general"]);
+
+        // --- NEW: Channel Switching Logic ---
+        // --- FIX 2: Shared DM Channel Generator ---
+        function getDMChannel(targetUser) {
+            // Sort names alphabetically so both users always generate the exact same channel string!
+            const users = [myUsername, targetUser].sort();
+            return `@${users[0]}_${users[1]}`;
+        }
+
+        // --- UPDATED: Channel Switching Logic ---
+        function switchChannel(channelName) {
+            currentChannel = channelName;
+            
+            let displayName = channelName;
+            if (channelName.startsWith("@")) {
+                const users = channelName.substring(1).split("_");
+                displayName = (users[0] === myUsername) ? users[1] : users[0];
+                displayName = "@" + displayName;
+            }
+            
+            document.querySelector("#chat-header h2").innerText = displayName;
+            document.getElementById("message-input").placeholder = `Message ${displayName}...`;
+            
+            document.getElementById("chat-box").innerHTML = "";
+            lastMessageCount = 0; 
+            
+            document.querySelectorAll('.channel-item').forEach(el => {
+                el.classList.remove('active');
+                const svg = el.querySelector('svg');
+                if(svg) svg.setAttribute('stroke', 'rgba(255,255,255,0.25)');
+            });
+            
+            try {
+                const activeElem = document.getElementById(`btn-${channelName}`) || document.getElementById(`peer-${channelName}`);
+                if (activeElem) {
+                    activeElem.classList.add('active');
+                    const svg = activeElem.querySelector('svg');
+                    if(svg) svg.setAttribute('stroke', '#c7d2fe');
+                    
+                    // --- THE FIX: Remove the red unread dot when clicked! ---
+                    const dot = activeElem.querySelector('.unread-dot');
+                    if (dot) dot.remove();
+                }
+            } catch(e) {}
+            
+            fetchMessages(); 
+        }
+
+        // --- NEW: Create Channel Logic ---
+        async function createChannel() {
+            const inputField = document.getElementById("new-channel-input");
+            const newChannel = inputField.value.trim().toLowerCase();
+            
+            if (newChannel && !knownChannels.has(newChannel)) {
+                // We DON'T add it to knownChannels here anymore.
+                // We just broadcast it to the network!
+                try {
+                    await fetch('/broadcast-peer', {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" }, 
+                        body: JSON.stringify({ 
+                            sender: "System", 
+                            channel: newChannel, 
+                            message: `Channel created by ${myUsername}` 
+                        })
+                    });
+
+                    inputField.value = "";
+                    // Switch to it immediately - fetchMessages will draw the button 
+                    // in the sidebar in the next tick.
+                    switchChannel(newChannel); 
+                } catch(e) {
+                    console.error("Failed to broadcast new channel", e);
+                }
+            }
+        }
+
+        // --- UPDATED: Poll for Active Peers (Adds Green Dot & Direct Messaging) ---
+        // --- UPDATED: Poll for Active Peers ---
+        async function fetchPeers() {
+            try {
+                const response = await fetch('/get-list');
+                const data = await response.json();
+                
+                const list = document.getElementById("peer-list");
+                
+                // --- THE FIX: Clear the UI list entirely before rebuilding ---
+                // This ensures peers who are no longer "Active" vanish from the screen
+                list.innerHTML = "";
+                
+                for (const [peerName, peerData] of Object.entries(data.peers)) {
+                    if (peerName === myUsername) continue; 
+
+                    const sharedDmChannel = getDMChannel(peerName);
+                    const li = document.createElement("li");
+                    li.className = "channel-item";
+                    if (currentChannel === sharedDmChannel) li.classList.add("active");
+                    li.id = `peer-${sharedDmChannel}`;
+                    
+                    li.onclick = () => switchChannel(sharedDmChannel);
+                    
+                    const isActive = currentChannel === sharedDmChannel;
+                    const strokeColor = isActive ? '#c7d2fe' : 'rgba(255,255,255,0.25)';
+                    
+                    // The Green Dot is now part of the fresh generation
+                    const svgIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#10b981" stroke="${strokeColor}" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="8"></circle></svg>`;
+                    
+                    li.innerHTML = `${svgIcon}<span style="flex:1;">${peerName} <span style="font-size:10px; opacity:0.5;">(${peerData.port})</span></span>`;
+                    list.appendChild(li);
+                }
+            } catch (e) { console.error("Failed to fetch peers"); }
+        }
+
+        // 4. Poll for Chat Messages
+        // --- UPDATED: Poll for Chat Messages (Uses currentChannel) ---
+        // --- FIX 1 & UPDATED: Poll for Chat Messages ---
+        let lastMessageCount = 0;
+        async function fetchMessages() {
+            try {
+                const response = await fetch('/get-messages');
+                const data = await response.json();
+                
+                const serverChannels = Object.keys(data.channels);
+                for (const ch of serverChannels) {
+                    // Check for new public channels
+                    if (!ch.startsWith("@") && !knownChannels.has(ch)) {
+                        knownChannels.add(ch);
+                        const list = document.getElementById("channel-list");
+                        const li = document.createElement("li");
+                        li.className = "channel-item";
+                        li.id = `btn-${ch}`;
+                        li.onclick = () => switchChannel(ch);
+                        const svgIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" style="flex-shrink:0"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>`;
+                        li.innerHTML = `${svgIcon}<span style="flex:1;">${ch}</span>`;
+                        list.appendChild(li);
+                    }
+
+                    // --- THE FIX: Unread Notification Logic ---
+                    const messagesInChannel = data.channels[ch];
+                    if (ch === currentChannel) {
+                        lastSeenCounts[ch] = messagesInChannel.length;
+                    } else {
+                        const seenCount = lastSeenCounts[ch] || 0;
+                        if (messagesInChannel.length > seenCount) {
+                            // Find the button (either public channel or DM)
+                            const btnId = ch.startsWith("@") ? `peer-${ch}` : `btn-${ch}`;
+                            const btnElem = document.getElementById(btnId);
+                            
+                            // If it doesn't already have a dot, inject one!
+                            if (btnElem && !btnElem.querySelector('.unread-dot')) {
+                                btnElem.innerHTML += `<span class="unread-dot" style="width:8px; height:8px; background:#ef4444; border-radius:50%; margin-left:auto; box-shadow: 0 0 6px #ef4444;"></span>`;
+                            }
+                        }
+                    }
+                }
+
+                // Render current channel messages
+                const messages = data.channels[currentChannel] || [];
+                if (messages.length > lastMessageCount) {
+                    const chatBox = document.getElementById("chat-box");
+                    for (let i = lastMessageCount; i < messages.length; i++) {
+                        const msgString = messages[i];
+                        const colonIndex = msgString.indexOf(":");
+                        if (colonIndex !== -1) {
+                            const sender = msgString.substring(0, colonIndex).trim();
+                            const text = msgString.substring(colonIndex + 1).trim();
+                            appendMessage(sender, text);
+                        }
+                    }
+                    lastMessageCount = messages.length;
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+            } catch(e) { console.error("Failed to fetch messages"); }
+        }
+
+        // Render a message to the DOM
+        function appendMessage(sender, text) {
+            const chatBox = document.getElementById("chat-box");
+            const isMe = (sender === myUsername);
+            
+            const row = document.createElement("div");
+            row.className = `message-row ${isMe ? "mine" : "other"}`;
+
+            const content = document.createElement("div");
+            content.className = "message-content";
+
+            if (!isMe) {
+                row.appendChild(createAvatarNode(sender, 36));
+                const nameDiv = document.createElement("div");
+                nameDiv.className = "sender-name";
+                nameDiv.innerText = sender;
+                content.appendChild(nameDiv);
+            }
+
+            const bubble = document.createElement("div");
+            bubble.className = "message-bubble";
+            bubble.innerText = text; 
+            
+            content.appendChild(bubble);
+            row.appendChild(content);
+            chatBox.appendChild(row);
+        }
+
+        // --- UPDATED: Send Message (Uses currentChannel) ---
+        async function sendMessage() {
+            const text = msgInput.value.trim();
+            if (!text) return;
+
+            msgInput.value = ""; 
+            sendBtn.disabled = true;
+
+            try {
+                await fetch('/broadcast-peer', {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" }, 
+                    // Send to the currently selected channel (e.g., "general" or "@bob")
+                    body: JSON.stringify({ sender: myUsername, channel: currentChannel, message: text })
+                });
+                
+                fetchMessages();
+            } catch(e) { console.error("Send failed", e); }
+        }
+
+        // Start engines on load
+        window.onload = async () => {
+            await registerPeer();
+            fetchPeers();
+            fetchMessages();
+            
+            // --- THE FIX: Continously ping the tracker heartbeat! ---
+            setInterval(() => {
+                registerPeer(); 
+                fetchPeers();
+            }, 3000);
+            
+            setInterval(fetchMessages, 2000);
+        };
+    </script>
+</body>
+</html>

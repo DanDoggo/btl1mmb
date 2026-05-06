@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AsynapRous Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* (KEEP ALL YOUR EXISTING CSS FROM index.html UP TO THE MAIN APP SCREEN section) */
+        :root {
+            --bg-dark: #0a0a12;
+            --bg-glass: rgba(20, 20, 35, 0.85);
+            --border-light: rgba(255, 255, 255, 0.08);
+            --primary: #6366f1;
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --text-main: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.45);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { 
+            background: radial-gradient(ellipse at 10% 10%, #1a1a3e 0%, #0a0a12 55%, #000 100%);
+            color: var(--text-main); height: 100vh; display: flex; flex-direction: column; 
+            overflow: hidden; position: relative;
+        }
+        .ambient-orb-1 { position: absolute; top: 15%; left: 10%; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+        .ambient-orb-2 { position: absolute; bottom: 20%; right: 15%; width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle, rgba(168,85,247,0.1) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+        #setup-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; position: relative; z-index: 10; }
+        .login-box {
+            background: var(--bg-glass); padding: 48px 40px; border-radius: 24px;
+            box-shadow: 0 32px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05); width: 400px;
+            border: 1px solid var(--border-light); backdrop-filter: blur(24px); text-align: center;
+        }
+        .brand-icon { width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 16px; background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(99,102,241,0.4); }
+        .login-box h1 { color: #fff; font-size: 26px; margin-bottom: 6px; }
+        .login-box p { color: rgba(255,255,255,0.4); font-size: 14px; margin-bottom: 24px; }
+        .login-box input { width: 100%; padding: 14px 18px; margin-bottom: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.35); color: white; font-size: 15px; outline: none; }
+        .login-box button { width: 100%; padding: 14px; border-radius: 12px; border: none; background: var(--primary-gradient); color: white; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .login-footer { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 24px; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; }
+        #error-msg { color: #ef4444; font-size: 14px; margin-bottom: 15px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="ambient-orb-1"></div>
+    <div class="ambient-orb-2"></div>
+
+    <div id="setup-screen">
+        <form class="login-box" id="loginForm">
+            <div class="brand-icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <h1>AsynapRous</h1>
+            <p>Secure Peer Authentication</p>
+            
+            <div id="error-msg"></div>
+
+            <input type="text" id="username" placeholder="Username" required>
+            <input type="password" id="password" placeholder="Password" required>
+            
+            <button type="submit">Login</button>
+            
+            <div class="login-footer">
+                <div class="status-dot"></div>
+                <span style="font-size: 12px; color: rgba(255,255,255,0.35);">Session secured via Cookies</span>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('error-msg');
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.status === 401) {
+                    errorDiv.innerText = "Wrong credentials! (401 Unauthorized)";
+                    errorDiv.style.display = 'block';
+                } else if (response.ok) {
+                    // Save username to local storage so the chat UI knows who we are
+                    localStorage.setItem("my_username", username); 
+                    // Redirect to the chat interface
+                    window.location.href = '/chat.html'; 
+                } else {
+                    errorDiv.innerText = "Server error: " + response.status;
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                console.error("Connection failed", err);
+                errorDiv.innerText = "Network Error!";
+                errorDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

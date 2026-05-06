@@ -1,0 +1,60 @@
+cách chại test bench
+
+
+
+			1. mở terminal trong tệp CO3094-asynaprous
+	mã mỏ server
+python start_sampleapp.py --server-port 8001
+	mã mở proxy (default port 8080) dùng cho edge_cases_tb.py
+python start_proxy.py 
+
+
+
+
+			2. mở terminal trong tệp test
+	mã chạy overall.py
+python overall.py
+
+dùng để check 	RFC 2617 Basic Authentication,
+		RFC 6265 Cookie Issuance,
+		Access Control (Cookie Verification)
+
+	mã chạy edge_cases_tb.py
+python edge_cases_tb.py
+
+dùng để check 	Tracker Peer Registration, 
+		Case-Insensitive Header Stress Test, 
+		Proxy Unknown Host Rejection,
+		Proxy Missing Host Header
+
+
+
+
+			3. chạy stress test đo hiệu năng mỗi mode (threading vs coroutine)
+nhớ chỉnh mode trong file sampleapp.py và backend.py
+
+tạo 3 cái terminal và chạy theo thứ tự:
+1 cái chạy sever
+
+1 cái chạy monitor đo hiệu năng
+	mã kiếm pid server port 8001
+pgrep -f start_sampleapp.py (Linux)
+netstat -ano | findstr :8001 (window)
+	kiếm xong nhập vô cho hiện max ram và thread
+python monitor.py <THE_PID_NUMBER>
+
+1 cái trong test để chạy test. mã: python riel_benchmark.py
+
+
+
+
+			4. chạy test 3 server nói chuyện với nhau
+
+tạo 4 cái terminal và chạy theo thứ tự:
+1 cái chạy server port 8001
+1 cái 8002
+1 cái 8003
+
+1 cái chạy test: python test_p2p.py
+
+				
