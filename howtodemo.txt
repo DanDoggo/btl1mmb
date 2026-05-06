@@ -1,0 +1,27 @@
+step 1: Open multiple terminal windows.
+python start_sampleapp.py --server-ip 127.0.0.1 --server-port 9000
+python start_sampleapp.py --server-ip 127.0.0.1 --server-port 9001
+python start_sampleapp.py --server-ip 127.0.0.1 --server-port 9002
+
+step 2: Turn on the proxy server.
+python start_proxy.py --server-ip 0.0.0.0 --server-port 8080
+
+Step 3: Connect the Clients
+put this in 3 incognito tab
+http://127.0.0.1:8080
+http://127.0.0.2:8080
+http://127.0.0.3:8080
+
+Step 4: Login and Auto-Discover
+
+In Tab 1:
+Username: admin
+Password: admin
+
+In Tab 2:
+Username: a
+Password: a
+
+In Tab 3:
+Username: b
+Password: b

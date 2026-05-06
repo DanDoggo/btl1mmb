@@ -1,0 +1,35 @@
+CO3094-ASYNAPROUS
+├── apps
+│   ├── __init__.py
+│   └── sampleapp.py
+├── cert
+├── config
+│   └── proxy.conf
+├── daemon
+│   ├── __init__.py
+│   ├── asynaprous.py
+│   ├── backend.py
+│   ├── dictionary.py
+│   ├── httpadapter.py
+│   ├── proxy.py
+│   ├── request.py
+│   ├── response.py
+│   └── utils.py
+├── db
+│   └── auth_db.py
+├── static
+│   ├── css
+│   │   └── styles.css
+│   ├── images
+│   │   ├── favicon.ico
+│   │   ├── welcome.jpg
+│   │   └── welcome.png
+│   └── js
+├── www
+│   ├── form.html
+│   ├── chat.html
+│   └── login.html
+├── __init__.py
+├── start_backend.py
+├── start_proxy.py
+└── start_sampleapp.py
