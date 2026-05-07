@@ -1,0 +1,54 @@
+cách chại test bench
+
+
+
+1. mở terminal trong tệp CO3094-asynaprous
+- mã mỏ server
+python start_sampleapp.py --server-ip 127.0.0.1 --server-port 9000
+
+- mã mở proxy (default port 8080) dùng cho edge_cases_tb.py
+python start_proxy.py --server-ip 0.0.0.0 --server-port 8080
+
+
+2. mở terminal trong tệp test
+- mã chạy overall.py
+python overall.py
+
+dùng để check 	RFC 2617 Basic Authentication Header Parsing
+		RFC 6265 Cookie Issuance (Testing /login)
+		Access Control - Valid Cookie (Testing /broadcast-peer)
+		RFC 7235 Access Control - Missing Cookie (Security Audit)
+
+- mã chạy core_functional_tb.py
+python core_functional_tb.py
+
+dùng để check 	Tracker Node Registration (Client-Server Paradigm)
+		Case-Insensitive Header Parsing (Protocol Compliance)
+		Proxy 404 Routing (Testing daemon/proxy.py logic)
+		Malformed Request (Missing Host Header)
+
+- mã chạy p2p_endpoint_tb.py
+python p2p_endpoint_tb.py
+
+dùng để check	Channel Management (/add-list)
+		P2P Handshake Protocol (/connect-peer)
+		True Direct Peer Messaging (/send-peer)
+		BONUS VERIFICATION: Did it actually save to memory?
+
+3. chạy stress test đo hiệu năng mỗi mode (threading vs coroutine)
+nhớ chỉnh mode trong file sampleapp.py và backend.py
+
+tạo 3 cái terminal và chạy theo thứ tự:
+1 cái chạy sever
+
+1 cái chạy monitor đo hiệu năng
+- mã kiếm pid server port 9000
+pgrep -f start_sampleapp.py (Linux)
+netstat -ano | findstr :9000 (window)
+
+- kiếm xong nhập vô cho hiện max ram và thread
+python monitor.py <THE_PID_NUMBER>
+
+1 cái trong test để chạy test. mã: python riel_benchmark.py
+
+				

@@ -51,7 +51,7 @@ def parse_virtual_hosts(config_file):
     """
     Parses virtual host blocks from a config file.
     """
-    with open(config_file, 'r') as f:
+    with open(config_file, "r") as f:
         config_text = f.read()
 
     # Match each host block
@@ -62,19 +62,19 @@ def parse_virtual_hosts(config_file):
         proxy_map = {}
 
         # 1. Find all proxy_pass entries
-        proxy_passes = re.findall(r'proxy_pass\s+http://([^\s;]+);', block)
+        proxy_passes = re.findall(r"proxy_pass\s+http://([^\s;]+);", block)
         map = proxy_map.get(host, [])
         map = map + proxy_passes
         proxy_map[host] = map
 
         # 2. Find dist_policy if present
-        policy_match = re.search(r'dist_policy\s+(\w+)', block)
-        dist_policy_map = policy_match.group(1) if policy_match else 'round-robin'
+        policy_match = re.search(r"dist_policy\s+(\w+)", block)
+        dist_policy_map = policy_match.group(1) if policy_match else "round-robin"
 
         # --- THE FIX: Capture proxy_set_header directives ---
         # Regex captures the HeaderName and Value (e.g., "Host" and "$host")
         set_headers = {}
-        header_matches = re.findall(r'proxy_set_header\s+([^\s]+)\s+([^;]+);', block)
+        header_matches = re.findall(r"proxy_set_header\s+([^\s]+)\s+([^;]+);", block)
         for header_name, header_value in header_matches:
             set_headers[header_name] = header_value
         # ----------------------------------------------------
@@ -82,11 +82,13 @@ def parse_virtual_hosts(config_file):
         # Add set_headers as the third element in our routing tuple
         if len(proxy_map.get(host, [])) == 1:
             routes[host] = (proxy_map.get(host, [])[0], dist_policy_map, set_headers)
-        elif dist_policy_map in ['round-robin', 'least-conn', 'random']:
+        elif dist_policy_map in ["round-robin", "least-conn", "random"]:
             routes[host] = (proxy_map.get(host, []), dist_policy_map, set_headers)
         else:
-            print(f"Warning: Unsupported policy '{dist_policy_map}'. Falling back to round-robin.")
-            routes[host] = (proxy_map.get(host, []), 'round-robin', set_headers)
+            print(
+                f"Warning: Unsupported policy '{dist_policy_map}'. Falling back to round-robin."
+            )
+            routes[host] = (proxy_map.get(host, []), "round-robin", set_headers)
 
     return routes
 
@@ -103,10 +105,12 @@ if __name__ == "__main__":
     :arg --server-port (int): Port number to bind the server (default: 9000).
     """
 
-    parser = argparse.ArgumentParser(prog='Proxy', description='', epilog='Proxy daemon')
-    parser.add_argument('--server-ip', default='0.0.0.0')
-    parser.add_argument('--server-port', type=int, default=PROXY_PORT)
- 
+    parser = argparse.ArgumentParser(
+        prog="Proxy", description="", epilog="Proxy daemon"
+    )
+    parser.add_argument("--server-ip", default="0.0.0.0")
+    parser.add_argument("--server-port", type=int, default=PROXY_PORT)
+
     args = parser.parse_args()
     ip = args.server_ip
     port = args.server_port
