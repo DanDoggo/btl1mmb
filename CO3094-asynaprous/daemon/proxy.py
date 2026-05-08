@@ -226,6 +226,9 @@ def handle_client(ip, port, conn, addr, routes):
             response = (
                 "HTTP/1.1 200 OK\r\n"
                 "Content-Type: application/json\r\n"
+                "Access-Control-Allow-Origin: *\r\n"  # <-- THÊM DÒNG NÀY
+                "Access-Control-Allow-Headers: *\r\n"  # <-- THÊM DÒNG NÀY
+                "Access-Control-Allow-Methods: POST, GET\r\n"  # <-- THÊM DÒNG NÀY
                 "Connection: close\r\n\r\n"
                 '{"status": "Dynamic Proxy Updated"}'
             ).encode("utf-8")

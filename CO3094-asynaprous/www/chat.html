@@ -199,12 +199,13 @@
         // --- THE FIX: Hàm này chỉ gọi đúng 1 lần để xin phép Proxy ---
         async function initProxyRegistration() {
             try {
-                await fetch('/proxy-register', {
+                // ÉP TRÌNH DUYỆT BÁO CÁO VỀ ĐÚNG IP CỦA MÁY PROXY
+                await fetch('http://10.28.189.138:8080/proxy-register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ port: myPort })
                 });
-                console.log("Đã gửi yêu cầu mở cổng Proxy thành công!");
+                console.log("Đã đăng ký động với Proxy 10.28.189.138 thành công!");
             } catch(e) { console.error("Proxy registration failed", e); }
         }
 
