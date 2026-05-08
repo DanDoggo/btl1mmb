@@ -20,7 +20,6 @@ raw URL paths and RESTful route definitions, and integrates with
 Request and Response objects to handle client-server communication.
 """
 
-from .utils import get_auth_from_url  # added
 from .request import Request
 from .response import Response
 from .dictionary import CaseInsensitiveDict
