@@ -68,7 +68,7 @@ def parse_virtual_hosts(config_file):
         proxy_map[host] = map
 
         # 2. Find dist_policy if present
-        policy_match = re.search(r"dist_policy\s+(\w+)", block)
+        policy_match = re.search(r"dist_policy\s+([\w-]+)", block)
         dist_policy_map = policy_match.group(1) if policy_match else "round-robin"
 
         # --- THE FIX: Capture proxy_set_header directives ---

@@ -354,6 +354,19 @@ if P2P_MODE == "coroutine":
     @app.route("/get-messages", methods=["GET"])
     async def get_messages_async(headers, body):
         """API: Frontend polling endpoint to retrieve all chat messages."""
+        # --- THE INCIGNITO TRAP FIX: Secure the history! ---
+        cookie_header = headers.get("Cookie", "")
+        if "session_id=" not in str(cookie_header):
+            raw_401 = (
+                "HTTP/1.1 401 Unauthorized\r\n"
+                "Content-Type: application/json\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                '{"status": "error", "message": "Unauthorized: Missing Cookie"}'
+            )
+            return raw_401.encode("utf-8")
+        # ---------------------------------------------------
+
         try:
             return json.dumps({"status": "success", "channels": chat_channels}).encode(
                 "utf-8"
@@ -513,6 +526,19 @@ elif P2P_MODE == "threading":
     @app.route("/get-messages", methods=["GET"])
     def get_messages_sync(headers, body):
         """API: Frontend polling endpoint to retrieve all chat messages (Sync)."""
+        # --- THE INCIGNITO TRAP FIX: Secure the history! ---
+        cookie_header = headers.get("Cookie", "")
+        if "session_id=" not in str(cookie_header):
+            raw_401 = (
+                "HTTP/1.1 401 Unauthorized\r\n"
+                "Content-Type: application/json\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                '{"status": "error", "message": "Unauthorized: Missing Cookie"}'
+            )
+            return raw_401.encode("utf-8")
+        # ---------------------------------------------------
+
         try:
             return json.dumps({"status": "success", "channels": chat_channels}).encode(
                 "utf-8"

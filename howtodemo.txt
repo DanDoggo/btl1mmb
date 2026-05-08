@@ -1,4 +1,4 @@
-local demo:
+start up:
 step 1: Open multiple terminal windows.
 python start_sampleapp.py --server-ip 127.0.0.1 --server-port 9000
 python start_sampleapp.py --server-ip 127.0.0.1 --server-port 9001
@@ -9,15 +9,13 @@ python start_proxy.py --server-ip 0.0.0.0 --server-port 8080
 
 Step 3: Connect the Clients
 put this in 3 incognito tab
-http://127.0.0.1:8080
-http://127.0.0.2:8080
-http://127.0.0.3:8080
+http://127.0.0.1:8080 (if you want to connect locally)
 
 Step 4: Login and Auto-Discover
 
 In Tab 1:
-Username: admin
-Password: admin
+Username: a
+Password: a
 
 In Tab 2:
 Username: b
@@ -34,8 +32,7 @@ step 1: turn off the firewall for public network of the host machine
 step 2: check the ip of the host device by cmd ipconfig /all and search for IPv4 address in "wireless lan wifi adapter" 
 
 step 3: change the proxy config
-for example: change the host "127.0.0.2:8080" to host "192.168.1.145:8080"
+for example: change the host "192.168.1.145:8080" to host "192.168.1.x:8080"
 so when you run the backend port 9001 it will authenticate for my phone
 
-step 4: enter http://192.168.1.145:8080/ in your other device browser
-still enter http://127.0.0.x:8080 on the host
+step 4: enter http://192.168.1.x:8080/ in both of your device browser
