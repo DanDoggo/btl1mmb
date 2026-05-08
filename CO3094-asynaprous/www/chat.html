@@ -156,7 +156,7 @@
             window.location.href = '/login.html'; // Kick out if not logged in
         }
 
-        const myPort = window.location.port || 80;
+        const myPort = 9000;
         const msgInput = document.getElementById("message-input");
         const sendBtn = document.getElementById("send-btn");
 
@@ -183,16 +183,29 @@
         // 2. Register with Tracker
         async function registerPeer() {
             try {
+                // Chỉ gửi heartbeat để báo online cho các peer khác
                 await fetch('/submit-info', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         username: myUsername, 
-                        ip: window.location.hostname, // <--- This sends 127.0.0.2 or 127.0.0.3!
+                        ip: window.location.hostname, 
                         port: myPort 
                     })
                 });
             } catch(e) { console.error("Tracker registration failed", e); }
+        }
+
+        // --- THE FIX: Hàm này chỉ gọi đúng 1 lần để xin phép Proxy ---
+        async function initProxyRegistration() {
+            try {
+                await fetch('/proxy-register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ port: myPort })
+                });
+                console.log("Đã gửi yêu cầu mở cổng Proxy thành công!");
+            } catch(e) { console.error("Proxy registration failed", e); }
         }
 
         // --- NEW: State Variables ---
@@ -432,6 +445,7 @@ async function fetchMessages() {
 
         // Start engines on load
         window.onload = async () => {
+            await initProxyRegistration();
             await registerPeer();
             fetchPeers();
             fetchMessages();

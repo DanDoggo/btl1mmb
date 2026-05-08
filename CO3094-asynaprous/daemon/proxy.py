@@ -28,6 +28,7 @@ Requirement:
 
 """
 
+import json
 import socket
 import threading
 from .response import *
@@ -187,6 +188,58 @@ def handle_client(ip, port, conn, addr, routes):
     # Reassemble the raw request as bytes
     full_raw_request = header_data + separator + body_data
     # -----------------------------------------
+
+    # === THE FIX: DYNAMIC PROXY REGISTRATION ===
+    request_line = header_text.split("\r\n")[0]
+    if "POST /proxy-register HTTP" in request_line:
+        try:
+            body_json = json.loads(body_data.decode("utf-8"))
+
+            # ĐỈNH CAO Ở ĐÂY: Không tin tưởng IP từ JS gửi lên,
+            # Proxy tự động bắt IP thật của Laptop đang kết nối thông qua socket!
+            peer_ip = addr[0]
+            peer_port = str(body_json.get("port", "9000"))
+            target_host = hostname
+
+            print(
+                f"[Proxy] DYNAMIC REGISTRATION: Allowing {peer_ip}:{peer_port} into Proxy Pool!"
+            )
+
+            # Nếu host chưa tồn tại trong RAM của Proxy, tạo mới
+            if target_host not in routes:
+                routes[target_host] = ([], "round-robin", {})
+
+            proxy_map, policy, custom_headers = routes[target_host]
+            new_backend = f"{peer_ip}:{peer_port}"
+
+            # Xử lý an toàn nếu proxy_map đang là chuỗi (chỉ có 1 backend gốc)
+            if isinstance(proxy_map, str):
+                proxy_map = [proxy_map]
+
+            # Thêm IP mới vào danh sách cho phép
+            if new_backend not in proxy_map:
+                proxy_map.append(new_backend)
+
+            # Cập nhật lại bộ nhớ định tuyến của Proxy
+            routes[target_host] = (proxy_map, policy, custom_headers)
+
+            response = (
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Type: application/json\r\n"
+                "Connection: close\r\n\r\n"
+                '{"status": "Dynamic Proxy Updated"}'
+            ).encode("utf-8")
+        except Exception as e:
+            response = (
+                f"HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n{str(e)}".encode(
+                    "utf-8"
+                )
+            )
+
+        conn.sendall(response)
+        conn.close()
+        return
+    # =========================================
 
     resolved_host, resolved_port, set_headers = resolve_routing_policy(hostname, routes)
 
