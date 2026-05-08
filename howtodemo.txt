@@ -1,15 +1,12 @@
-start up:
-step 1: Open multiple terminal windows.
-python start_sampleapp.py --server-ip 127.0.0.1 --server-port 9000
-python start_sampleapp.py --server-ip 127.0.0.1 --server-port 9001
-python start_sampleapp.py --server-ip 127.0.0.1 --server-port 9002
+start up: require 3 laptops connect with the same wifi
+step 1: Open terminal on each laptop.
+python start_sampleapp.py --server-ip 0.0.0.0 --server-port 9000
 
-step 2: Turn on the proxy server.
+step 2: Turn on the proxy server in 1 laptop.
 python start_proxy.py --server-ip 0.0.0.0 --server-port 8080
 
 Step 3: Connect the Clients
-put this in 3 incognito tab
-http://127.0.0.1:8080 (if you want to connect locally)
+http://10.28.189.138:8080/
 
 Step 4: Login and Auto-Discover
 
@@ -30,9 +27,3 @@ if you want to connect to the web with other device with the same wifi
 step 1: turn off the firewall for public network of the host machine
 
 step 2: check the ip of the host device by cmd ipconfig /all and search for IPv4 address in "wireless lan wifi adapter" 
-
-step 3: change the proxy config
-for example: change the host "192.168.1.145:8080" to host "192.168.1.x:8080"
-so when you run the backend port 9001 it will authenticate for my phone
-
-step 4: enter http://192.168.1.x:8080/ in both of your device browser
