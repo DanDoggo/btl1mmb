@@ -598,6 +598,20 @@
             try {
                 const response = await fetch(`${TRACKER_URL}/get-list`);
                 const data = await response.json();
+
+                for (const [peerName, peerInfo] of Object.entries(data.peers)) {
+                    // Notice the relative path '/' ! This hits their LOCAL backend, not the proxy.
+                    fetch('/submit-info', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username: peerName,
+                            ip: peerInfo.ip,
+                            port: peerInfo.port
+                        })
+                    }).catch(e => { }); // Ignore minor sync errors
+                }
+
                 const list = document.getElementById("peer-list");
 
                 // Remember anyone we've ever seen
