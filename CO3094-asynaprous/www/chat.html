@@ -457,6 +457,7 @@
         const sendBtn = document.getElementById("send-btn");
 
         const TRACKER_URL = "http://10.28.189.138:8080";
+        const LOCAL_DAEMON = "http://127.0.0.1:9000";
         let myRealIP = "127.0.0.1";
 
         msgInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });

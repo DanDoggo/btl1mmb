@@ -216,13 +216,6 @@ def handle_client(ip, port, conn, addr, routes):
             if isinstance(proxy_map, str):
                 proxy_map = [proxy_map]
 
-            # Thêm IP mới vào danh sách cho phép
-            if new_backend not in proxy_map:
-                proxy_map.append(new_backend)
-
-            # Cập nhật lại bộ nhớ định tuyến của Proxy
-            routes[target_host] = (proxy_map, policy, custom_headers)
-
             response = (
                 "HTTP/1.1 200 OK\r\n"
                 "Content-Type: application/json\r\n"
