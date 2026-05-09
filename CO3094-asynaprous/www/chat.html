@@ -456,8 +456,8 @@
         const msgInput = document.getElementById("message-input");
         const sendBtn = document.getElementById("send-btn");
 
-        let myRealIP = window.location.hostname;
-        let LOCAL_DAEMON = `http://${myRealIP}:${myPort}`;
+        const TRACKER_URL = "http://10.28.189.138:8080";
+        let myRealIP = "127.0.0.1";
 
         msgInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
         msgInput.addEventListener("input", e => { sendBtn.disabled = e.target.value.trim() === ""; });
@@ -482,12 +482,12 @@
         // 2. Register with Tracker
         async function registerPeer() {
             try {
-                await fetch('/submit-info', {
+                await fetch(`${TRACKER_URL}/submit-info`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'text/plain' }, // Hack to bypass CORS!
                     body: JSON.stringify({
                         username: myUsername,
-                        ip: myRealIP, // <--- USE THE REAL IP HERE
+                        ip: myRealIP,
                         port: myPort
                     })
                 });
@@ -497,18 +497,16 @@
         // Update the Proxy Registration function
         async function initProxyRegistration() {
             try {
-                const response = await fetch('http://10.28.189.138:8080/proxy-register', {
+                const response = await fetch(`${TRACKER_URL}/proxy-register`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'text/plain' }, // Hack to bypass CORS!
                     body: JSON.stringify({ port: myPort })
                 });
-
                 const data = await response.json();
                 if (data.real_ip) {
                     myRealIP = data.real_ip;
-                    LOCAL_DAEMON = `http://${myRealIP}:${myPort}`; // We got the true local IP!
+                    console.log("Got real IP from tracker:", myRealIP);
                 }
-                console.log("Registered with Proxy. My real IP is: " + myRealIP);
             } catch (e) { console.error("Proxy registration failed", e); }
         }
 
@@ -597,9 +595,8 @@
         // --- 2. REPLACE YOUR fetchPeers() FUNCTION ---
         async function fetchPeers() {
             try {
-                const response = await fetch('/get-list');
+                const response = await fetch(`${TRACKER_URL}/get-list`);
                 const data = await response.json();
-
                 const list = document.getElementById("peer-list");
 
                 // Remember anyone we've ever seen

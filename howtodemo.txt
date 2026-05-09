@@ -2,11 +2,11 @@ start up: require 3 laptops connect with the same wifi
 step 1: pull the project from git and open the server on each laptop.
 python start_sampleapp.py --server-ip 0.0.0.0 --server-port 9000
 
-step 2: Turn on the proxy server in 1 laptop.
+step 2: Turn on the proxy server in 1 of 3 laptops.
 python start_proxy.py --server-ip 0.0.0.0 --server-port 8080
 
 Step 3: Connect the Clients
-http://10.128.38.148:8080/ (i am current hard code this on chat.html and proxy.confg, which is not good)
+http://127.0.0.1:9000 (i am current hard code this on chat.html and proxy.confg, which is not good)
 10.128.38.148
 10.28.189.138
 
