@@ -25,7 +25,7 @@ from .response import Response
 from .dictionary import CaseInsensitiveDict
 from .utils import get_auth_from_url, get_encoding_from_headers
 
-import base64  # added
+import base64
 import asyncio
 import inspect
 

@@ -230,7 +230,7 @@ def handle_client(ip, port, conn, addr, routes):
                 "Access-Control-Allow-Headers: *\r\n"  # <-- THÊM DÒNG NÀY
                 "Access-Control-Allow-Methods: POST, GET\r\n"  # <-- THÊM DÒNG NÀY
                 "Connection: close\r\n\r\n"
-                '{"status": "Dynamic Proxy Updated"}'
+                f'{{"status": "Dynamic Proxy Updated", "real_ip": "{peer_ip}"}}'
             ).encode("utf-8")
         except Exception as e:
             response = (

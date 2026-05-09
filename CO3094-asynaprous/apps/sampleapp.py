@@ -23,7 +23,6 @@ import asyncio
 import socket
 import threading
 import time
-from wsgiref import headers
 
 from daemon import AsynapRous
 from db.auth_db import get_password

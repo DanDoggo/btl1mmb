@@ -1,12 +1,13 @@
 start up: require 3 laptops connect with the same wifi
-step 1: Open terminal on each laptop.
+step 1: pull the project from git and open the server on each laptop.
 python start_sampleapp.py --server-ip 0.0.0.0 --server-port 9000
 
 step 2: Turn on the proxy server in 1 laptop.
 python start_proxy.py --server-ip 0.0.0.0 --server-port 8080
 
 Step 3: Connect the Clients
-http://10.28.189.138:8080/
+http://10.28.189.138:8080/ (i am current hard code this on chat.html and proxy.confg, which is not good)
+10.128.38.148
 
 Step 4: Login and Auto-Discover
 
@@ -22,8 +23,8 @@ In Tab 3:
 Username: c
 Password: c
 
-if you want to connect to the web with other device with the same wifi
+some notices
 
 step 1: turn off the firewall for public network of the host machine
 
-step 2: check the ip of the host device by cmd ipconfig /all and search for IPv4 address in "wireless lan wifi adapter" 
+step 2: check the ip of the host device by cmd ipconfig /all and search for IPv4 address in "wireless lan wifi adapter" or check the information in the laptop's connected wifi
