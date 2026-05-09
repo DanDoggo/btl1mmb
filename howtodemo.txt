@@ -6,8 +6,9 @@ step 2: Turn on the proxy server in 1 laptop.
 python start_proxy.py --server-ip 0.0.0.0 --server-port 8080
 
 Step 3: Connect the Clients
-http://10.28.189.138:8080/ (i am current hard code this on chat.html and proxy.confg, which is not good)
+http://10.128.38.148:8080/ (i am current hard code this on chat.html and proxy.confg, which is not good)
 10.128.38.148
+10.28.189.138
 
 Step 4: Login and Auto-Discover
 
