@@ -413,6 +413,10 @@
                     <div id="profile-name" style="font-size: 13px; font-weight: 600; color: #e0e7ff;"></div>
                     <div style="font-size: 11px; color: #10b981;">● Online</div>
                 </div>
+                <button onclick="logout()"
+                    style="width: 100%; padding: 10px; background: #ef4444; color: white; border: none; font-weight: bold; cursor: pointer;">
+                    Logout
+                </button>
             </div>
         </div>
 
@@ -474,6 +478,17 @@
             avatar.style.width = size + "px"; avatar.style.height = size + "px";
             avatar.style.background = `linear-gradient(135deg, ${from} 0%, ${to} 100%)`;
             return avatar;
+        }
+
+        function logout() {
+            // 1. Erase the username from browser memory
+            localStorage.removeItem("my_username");
+
+            // 2. Destroy the session cookie by setting its expiration date to the past
+            document.cookie = "session_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+            // 3. Send them back to the login screen
+            window.location.href = '/login.html';
         }
 
         // Initialize UI
@@ -657,6 +672,13 @@
 
             try {
                 const response = await fetch(`${LOCAL_DAEMON}/get-messages`);
+                // --- AUTO-LOGOUT ON TIMEOUT ---
+                if (response.status === 401) {
+                    console.log("Session expired. Logging out.");
+                    logout(); // Call the logout function you made earlier!
+                    return;
+                }
+                // ---------------------------------------
                 const data = await response.json();
 
                 const serverChannels = Object.keys(data.channels);
@@ -740,6 +762,7 @@
         }
 
         // --- UPDATED: Send Message (Uses currentChannel) ---
+        // Inside chat.html
         async function sendMessage() {
             const text = msgInput.value.trim();
             if (!text) return;
@@ -748,13 +771,27 @@
             sendBtn.disabled = true;
 
             try {
-                await fetch(`${LOCAL_DAEMON}/broadcast-peer`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    // Send to the currently selected channel (e.g., "general" or "@bob")
-                    body: JSON.stringify({ sender: myUsername, channel: currentChannel, message: text })
-                });
-
+                if (currentChannel === "general") {
+                    // STAR TOPOLOGY: Send ONE message to the Central Server for fan-out
+                    await fetch(`${TRACKER_URL}/server-relay`, {
+                        method: "POST",
+                        headers: { "Content-Type": "text/plain" }, // CORS bypass hack
+                        body: JSON.stringify({ sender: myUsername, channel: currentChannel, message: text })
+                    });
+                } else {
+                    // P2P TOPOLOGY: Local daemon handles direct TCP connection
+                    await fetch('/broadcast-peer', { // Relative path hits the local daemon
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            sender: myUsername,
+                            channel: currentChannel,
+                            message: text,
+                            my_ip: myRealIP,
+                            my_port: myPort
+                        })
+                    });
+                }
                 fetchMessages();
             } catch (e) { console.error("Send failed", e); }
         }

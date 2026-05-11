@@ -122,8 +122,9 @@ P2P_MODE = "coroutine"
 # BASIC UTILITY & TRACKER ENDPOINTS (Always Synchronous)
 # =========================================================
 
-# Track who is officially authenticated
-authenticated_users = set()
+# Track who is authenticated AND when they last interacted
+session_last_active = {}
+SESSION_TIMEOUT = 15  # Timeout after 2 minutes of complete silence (adjust as needed!)
 
 
 @app.route("/login", methods=["POST"])
@@ -149,13 +150,13 @@ def login(headers, body):
             return raw_401.encode("utf-8")
         # -------------------------------------------
 
-        authenticated_users.add(username)
+        session_last_active[username] = time.time()
         body_json = json.dumps({"status": "success", "message": "Authenticated"})
 
         raw_response = (
             "HTTP/1.1 200 OK\r\n"
             "Content-Type: application/json\r\n"
-            f"Set-Cookie: session_id={username}; Path=/; HttpOnly\r\n"
+            f"Set-Cookie: session_id={username}; Path=/\r\n"
             f"Content-Length: {len(body_json)}\r\n"
             "Connection: close\r\n"
             "\r\n"
@@ -275,6 +276,29 @@ if P2P_MODE == "coroutine":
                 '{"status": "error", "message": "Unauthorized: Missing Cookie"}'
             )
             return raw_401.encode("utf-8")
+        
+        # Extract the username from the cookie
+        username = cookie_header.split("session_id=")[1].split(";")[0]
+        
+        # Check how long they have been gone
+        last_active = session_last_active.get(username, 0)
+        if time.time() - last_active > SESSION_TIMEOUT:
+            # They timed out! Delete their session on the backend.
+            if username in session_last_active:
+                del session_last_active[username]
+                
+            raw_401 = (
+                "HTTP/1.1 401 Unauthorized\r\n"
+                "Content-Type: application/json\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                '{"status": "error", "message": "Session Expired"}'
+            )
+            return raw_401.encode("utf-8")
+            
+        # They are alive! Reset their activity timer so they don't time out
+        session_last_active[username] = time.time()
+        # ---------------------------------------
 
         # 2. Catch the invisible browser preflight request and let it pass
         # FIXED: Check the dictionary keys directly
@@ -296,11 +320,15 @@ if P2P_MODE == "coroutine":
 
             # --- THE FIX: Fetch target peers from the shared tracker file ---
             active_peers = get_active_peers()
+            my_ip = msg_data.get("my_ip")
+            my_port = msg_data.get("my_port")
 
             tasks = []
             for username, address in active_peers.items():
                 # Check BOTH sender and initiator!
                 if sender == username or initiator == username:
+                    continue
+                if address["ip"] == my_ip and address["port"] == my_port:
                     continue
                 tasks.append(
                     send_http_post_async(
@@ -349,6 +377,43 @@ if P2P_MODE == "coroutine":
             ).encode("utf-8")
         except Exception as e:
             return json.dumps({"status": "error", "message": str(e)}).encode("utf-8")
+        
+    @app.route("/server-relay", methods=["POST", "OPTIONS"])
+    async def server_relay_async(headers, body):
+        """Client-Server Group Chat: Central Server fans out the message to all peers."""
+        
+        # Handle CORS preflight if the browser sends it
+        if "Access-Control-Request-Method" in headers:
+            return json.dumps({"status": "preflight ok"}).encode("utf-8")
+
+        try:
+            msg_data = json.loads(body)
+            sender = msg_data.get("sender", "Unknown")
+
+            # 1. Save it to the central server's own memory so late-joiners can pull it
+            if "general" not in chat_channels:
+                chat_channels["general"] = []
+            chat_channels["general"].append(f"{sender}: {msg_data.get('message', '')}")
+
+            # 2. Fan it out to everyone else!
+            active_peers = get_active_peers()
+            tasks = []
+            
+            for username, address in active_peers.items():
+                if username == sender:
+                    continue # Don't bounce the message back to the person who sent it
+                
+                # Push it to their local /send-peer endpoint
+                tasks.append(
+                    send_http_post_async(address["ip"], address["port"], "/send-peer", msg_data)
+                )
+            
+            # Execute all outgoing connections concurrently
+            await asyncio.gather(*tasks)
+            
+            return json.dumps({"status": "relay complete"}).encode("utf-8")
+        except Exception as e:
+            return json.dumps({"status": "error", "message": str(e)}).encode("utf-8")
 
     @app.route("/get-messages", methods=["GET"])
     async def get_messages_async(headers, body):
@@ -365,6 +430,27 @@ if P2P_MODE == "coroutine":
             )
             return raw_401.encode("utf-8")
         # ---------------------------------------------------
+        # Extract the username from the cookie
+        username = cookie_header.split("session_id=")[1].split(";")[0]
+        
+        # Check how long they have been gone
+        last_active = session_last_active.get(username, 0)
+        if time.time() - last_active > SESSION_TIMEOUT:
+            # They timed out! Delete their session on the backend.
+            if username in session_last_active:
+                del session_last_active[username]
+                
+            raw_401 = (
+                "HTTP/1.1 401 Unauthorized\r\n"
+                "Content-Type: application/json\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                '{"status": "error", "message": "Session Expired"}'
+            )
+            return raw_401.encode("utf-8")
+            
+        # They are alive! Reset their activity timer so they don't time out
+        session_last_active[username] = time.time()
 
         try:
             return json.dumps({"status": "success", "channels": chat_channels}).encode(
@@ -452,6 +538,29 @@ elif P2P_MODE == "threading":
                 '{"status": "error", "message": "Unauthorized: Missing Cookie"}'
             )
             return raw_401.encode("utf-8")
+        
+        # Extract the username from the cookie
+        username = cookie_header.split("session_id=")[1].split(";")[0]
+        
+        # Check how long they have been gone
+        last_active = session_last_active.get(username, 0)
+        if time.time() - last_active > SESSION_TIMEOUT:
+            # They timed out! Delete their session on the backend.
+            if username in session_last_active:
+                del session_last_active[username]
+                
+            raw_401 = (
+                "HTTP/1.1 401 Unauthorized\r\n"
+                "Content-Type: application/json\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                '{"status": "error", "message": "Session Expired"}'
+            )
+            return raw_401.encode("utf-8")
+            
+        # They are alive! Reset their activity timer so they don't time out
+        session_last_active[username] = time.time()
+        # ---------------------------------------
 
         # 2. Catch the invisible browser preflight request and let it pass
         # FIXED: Check the dictionary keys directly
@@ -521,7 +630,42 @@ elif P2P_MODE == "threading":
             ).encode("utf-8")
         except Exception as e:
             return json.dumps({"status": "error", "message": str(e)}).encode("utf-8")
+        
+    @app.route("/server-relay", methods=["POST", "OPTIONS"])
+    def server_relay_sync(headers, body):
+        """Client-Server Group Chat: Central Server fans out the message to all peers."""
+        
+        # Handle CORS preflight if the browser sends it
+        if "Access-Control-Request-Method" in headers:
+            return json.dumps({"status": "preflight ok"}).encode("utf-8")
 
+        try:
+            msg_data = json.loads(body)
+            sender = msg_data.get("sender", "Unknown")
+
+            # 1. Save it to the central server's own memory so late-joiners can pull it
+            if "general" not in chat_channels:
+                chat_channels["general"] = []
+            chat_channels["general"].append(f"{sender}: {msg_data.get('message', '')}")
+
+            # 2. Fan it out to everyone else!
+            active_peers = get_active_peers()
+            
+            for username, address in active_peers.items():
+                if username == sender:
+                    continue # Don't bounce the message back to the person who sent it
+                
+                thread = threading.Thread(
+                    target=send_http_post_thread,
+                    args=(address["ip"], address["port"], "/send-peer", msg_data),
+                )
+                thread.daemon = True
+                thread.start()
+            
+            return json.dumps({"status": "relay complete"}).encode("utf-8")
+        except Exception as e:
+            return json.dumps({"status": "error", "message": str(e)}).encode("utf-8")
+        
     @app.route("/get-messages", methods=["GET"])
     def get_messages_sync(headers, body):
         """API: Frontend polling endpoint to retrieve all chat messages (Sync)."""
@@ -537,6 +681,28 @@ elif P2P_MODE == "threading":
             )
             return raw_401.encode("utf-8")
         # ---------------------------------------------------
+        # Extract the username from the cookie
+        username = cookie_header.split("session_id=")[1].split(";")[0]
+        
+        # Check how long they have been gone
+        last_active = session_last_active.get(username, 0)
+        if time.time() - last_active > SESSION_TIMEOUT:
+            # They timed out! Delete their session on the backend.
+            if username in session_last_active:
+                del session_last_active[username]
+                
+            raw_401 = (
+                "HTTP/1.1 401 Unauthorized\r\n"
+                "Content-Type: application/json\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                '{"status": "error", "message": "Session Expired"}'
+            )
+            return raw_401.encode("utf-8")
+            
+        # They are alive! Reset their activity timer so they don't time out
+        session_last_active[username] = time.time()
+        # ---------------------------------------
 
         try:
             return json.dumps({"status": "success", "channels": chat_channels}).encode(
