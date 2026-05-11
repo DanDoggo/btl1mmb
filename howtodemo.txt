@@ -7,8 +7,6 @@ python start_proxy.py --server-ip 0.0.0.0 --server-port 8080
 
 Step 3: Connect the Clients
 http://127.0.0.1:9000 (i am current hard code this on chat.html and proxy.confg, which is not good)
-10.128.38.148
-10.28.189.138
 
 Step 4: Login and Auto-Discover
 
