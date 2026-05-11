@@ -259,15 +259,14 @@ if P2P_MODE == "coroutine":
     @app.route("/broadcast-peer", methods=["POST", "OPTIONS"])
     async def broadcast_message(headers, body):
         """
-        Broadcast a message to all active peers in the network.
+        Broadcast a message to active peers in the network.
 
         Verifies the client's session cookie, saves the message locally,
-        and dispatches asynchronous/threaded POST requests to all known peers.
+        and dispatches asynchronous POST requests to the specific target peers.
         """
-        # 1.  Check if the user sent the Cookie we gave them!
+        # 1. Check if the user sent the Cookie we gave them!
         cookie_header = headers.get("Cookie", "")
         if "session_id=" not in str(cookie_header):
-            # THE FIX: Explicitly send the 401 HTTP status header!
             raw_401 = (
                 "HTTP/1.1 401 Unauthorized\r\n"
                 "Content-Type: application/json\r\n"
@@ -283,7 +282,6 @@ if P2P_MODE == "coroutine":
         # Check how long they have been gone
         last_active = session_last_active.get(username, 0)
         if time.time() - last_active > SESSION_TIMEOUT:
-            # They timed out! Delete their session on the backend.
             if username in session_last_active:
                 del session_last_active[username]
 
@@ -298,10 +296,8 @@ if P2P_MODE == "coroutine":
 
         # They are alive! Reset their activity timer so they don't time out
         session_last_active[username] = time.time()
-        # ---------------------------------------
 
         # 2. Catch the invisible browser preflight request and let it pass
-        # FIXED: Check the dictionary keys directly
         if "Access-Control-Request-Method" in headers:
             return json.dumps({"status": "preflight ok"}).encode("utf-8")
 
@@ -318,24 +314,39 @@ if P2P_MODE == "coroutine":
                 chat_channels[channel] = []
             chat_channels[channel].append(f"{sender}: {text}")
 
-            # --- THE FIX: Fetch target peers from the shared tracker file ---
             active_peers = get_active_peers()
             my_ip = msg_data.get("my_ip")
             my_port = msg_data.get("my_port")
 
+            # --- THE PRIVACY FIX: Identify target users for DMs ---
+            target_users = None
+            if channel.startswith("@"):
+                # Channel looks like "@a_b", so we split it into ["a", "b"]
+                target_users = channel[1:].split("_")
+            # ------------------------------------------------------
+
             tasks = []
             for username, address in active_peers.items():
-                # Check BOTH sender and initiator!
+                # Skip sending to ourselves
                 if sender == username or initiator == username:
                     continue
+
+                # Prevent self-bombardment (Multiplier glitch fix)
                 if address["ip"] == my_ip and address["port"] == my_port:
                     continue
+
+                # --- THE PRIVACY FIX: If it is a DM, skip anyone not in the channel! ---
+                if target_users and username not in target_users:
+                    continue
+                # -----------------------------------------------------------------------
+
                 tasks.append(
                     send_http_post_async(
                         address["ip"], address["port"], "/send-peer", msg_data
                     )
                 )
 
+            # Fire off all the network requests concurrently!
             await asyncio.gather(*tasks)
 
             return json.dumps({"status": "broadcast complete"}).encode("utf-8")
@@ -578,11 +589,27 @@ elif P2P_MODE == "threading":
             active_peers = get_active_peers()
             # ---------------------------------------------------
 
+            my_ip = msg_data.get("my_ip")
+            my_port = msg_data.get("my_port")
+
+            # --- THE PRIVACY FIX: Identify target users for DMs ---
+            target_users = None
+            if channel.startswith("@"):
+                # Channel looks like "@a_b", so we split it into ["a", "b"]
+                target_users = channel[1:].split("_")
+            # ------------------------------------------------------
+
             for username, address in active_peers.items():
                 # Check BOTH sender and initiator!
                 if sender == username or initiator == username:
                     continue
+                # Prevent self-bombardment!
+                if address["ip"] == my_ip and address["port"] == my_port:
+                    continue
                 # Spawn a background thread for each outgoing message
+                if target_users and username not in target_users:
+                    continue
+
                 thread = threading.Thread(
                     target=send_http_post_thread,
                     args=(address["ip"], address["port"], "/send-peer", msg_data),
